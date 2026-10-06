@@ -15,3 +15,9 @@ bin/
 *.keystore
 *.jks
 photos/
+node_modules/
+dist/
+.vercel/
+.netlify/
+.env.local
+.env.*.local
