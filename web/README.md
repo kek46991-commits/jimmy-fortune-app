@@ -2,6 +2,8 @@
 
 React / TypeScript / Viteによるスマートフォン向けのAI手相・人相鑑定です。既存Python・Android版と独立してビルドできます。
 
+Web版は画像入力対応の **Gemini 3.5 Flash-Lite**（`gemini-3.5-flash-lite`）を使用します。Gemini 3向けの `thinkingLevel: low` で応答時間と費用を抑え、生成温度は1、出力上限は4096トークンです。Gemini 2.5 Flashは[既存利用者向けにアクセスが制限](https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash)されているため、新規プロジェクト向けの後継モデルへ変更しました。Python・Android版のモデルは変更していません。
+
 ## 起動・検証
 
 Node.js 22以降を推奨（開発時は24）。このディレクトリで実行します。
