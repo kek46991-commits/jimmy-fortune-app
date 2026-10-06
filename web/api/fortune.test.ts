@@ -5,12 +5,12 @@ import handler from './fortune';
 import configHandler from './config';
 
 vi.mock('../server/safety', () => ({ verifyChallenge: vi.fn(), allowReading: vi.fn() }));
-vi.mock('../src/lib/fortune', async importOriginal => {
-  const original = await importOriginal<typeof import('../src/lib/fortune')>();
+vi.mock('../server/gemini', async importOriginal => {
+  const original = await importOriginal<typeof import('../server/gemini')>();
   return { ...original, generateReading: vi.fn() };
 });
 import { verifyChallenge, allowReading } from '../server/safety';
-import { generateReading } from '../src/lib/fortune';
+import { generateReading } from '../server/gemini';
 
 function response() {
   let output: unknown;
@@ -18,7 +18,7 @@ function response() {
   return { res: res as unknown as ServerResponse, output: () => output };
 }
 const request = (body: unknown, method = 'POST') => ({
-  method, body, headers: { host: 'example.com', origin: 'https://example.com', 'x-vercel-forwarded-for': '1.2.3.4' },
+  method, body, headers: { host: 'example.com', origin: 'https://example.com', 'content-type': 'application/json', 'x-vercel-forwarded-for': '1.2.3.4' },
   socket: { remoteAddress: '1.2.3.4' },
 }) as unknown as IncomingMessage & { body: unknown };
 
@@ -31,10 +31,10 @@ beforeEach(() => {
 });
 
 describe('public Vercel functions', () => {
-  it('exposes only the public site key', () => {
-    const { res, output } = response(); configHandler(request({}, 'GET'), res);
+  it('exposes only the public site key', async () => {
+    const { res, output } = response(); await configHandler(request({}, 'GET'), res);
     expect(res.statusCode).toBe(200); expect(output()).toEqual({ siteKey: 'test-only' });
-    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
+    expect(res.setHeader).toHaveBeenCalledWith('cache-control', 'no-store');
   });
   it('rejects non-POST requests and missing credentials', async () => {
     let output = response(); await handler(request({}, 'GET'), output.res); expect(output.res.statusCode).toBe(405);

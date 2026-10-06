@@ -1,12 +1,12 @@
 import { createHmac } from 'node:crypto';
 import { isRecord } from '../src/lib/fortune';
 
-export async function verifyChallenge(token: string, hostname: string, ip: string): Promise<boolean> {
+export async function verifyChallenge(token: string, hostname: string, ip: string, signal?: AbortSignal): Promise<boolean> {
   try {
     const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ secret: process.env.TURNSTILE_SECRET_KEY, response: token, remoteip: ip }),
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.any([AbortSignal.timeout(10_000), ...(signal ? [signal] : [])]),
     });
     if (!response.ok) return false;
     const result: unknown = await response.json();
@@ -24,7 +24,7 @@ local d = redis.call('INCR', KEYS[2])
 if d == 1 then redis.call('EXPIRE', KEYS[2], 86400) end
 return 1`;
 
-export async function allowReading(ip: string): Promise<boolean> {
+export async function allowReading(ip: string, signal?: AbortSignal): Promise<boolean> {
   const identifier = createHmac('sha256', process.env.TURNSTILE_SECRET_KEY!).update(ip).digest('hex');
   const configured = Number(process.env.DAILY_READING_LIMIT ?? 100);
   const daily = Number.isInteger(configured) && configured > 0 && configured <= 1000 ? configured : 100;
@@ -34,7 +34,7 @@ export async function allowReading(ip: string): Promise<boolean> {
     method: 'POST',
     headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(['EVAL', RATE_SCRIPT, '2', `hoshitsumugi:{quota}:ip:${identifier}`, 'hoshitsumugi:{quota}:daily', '5', String(daily)]),
-    signal: AbortSignal.timeout(10_000),
+    signal: AbortSignal.any([AbortSignal.timeout(10_000), ...(signal ? [signal] : [])]),
   });
   if (!response.ok) throw new Error('Rate limit service unavailable');
   const result: unknown = await response.json();
