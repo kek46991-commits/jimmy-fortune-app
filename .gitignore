@@ -9,6 +9,7 @@ venv/
 bin/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
 *.apk
 *.aab
 *.keystore
