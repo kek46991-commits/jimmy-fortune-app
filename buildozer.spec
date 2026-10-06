@@ -1,10 +1,10 @@
 [app]
-title = Jimmy Fortune
+title = 星紡ぎ
 package.name = jimmyfortune
 package.domain = app.jimmyfortune
 source.dir = .
 source.include_exts = py,kv,png,jpg,jpeg,atlas,ttf,txt
-source.exclude_dirs = tests,.git,.venv,venv,.buildozer,bin,__pycache__,photos,.pytest_cache,.ruff_cache,.mypy_cache
+source.exclude_dirs = tests,.git,.venv,venv,.buildozer,bin,__pycache__,photos,.pytest_cache,.ruff_cache,.mypy_cache,web,node_modules,dist,.github
 source.exclude_patterns = .env*,requirements*.txt
 version = 1.0.0
 # google-genai requires native dependencies; Android uses the official REST API.

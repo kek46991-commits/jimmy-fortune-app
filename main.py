@@ -32,7 +32,7 @@ KV = """
 MDBoxLayout:
     orientation: "vertical"
     MDTopAppBar:
-        title: "ジミーの本音占い"
+        title: "星紡ぎ — AI手相・人相鑑定"
         elevation: 4
         right_action_items: [["delete-outline", lambda x: app.clear_reading()]]
     ScrollView:
@@ -44,7 +44,7 @@ MDBoxLayout:
             spacing: "14dp"
             padding: "16dp"
             ReadingLabel:
-                text: "顔と両手から、ジミーが関西弁で本音鑑定！"
+                text: "顔と両手から、星紡ぎがあなたの物語をひもとく。"
                 font_style: "H6"
                 bold: True
             ReadingLabel:
@@ -144,7 +144,7 @@ MDBoxLayout:
                     pos_hint: {"center_y": .5}
             MDRaisedButton:
                 id: btn_submit
-                text: "ジミーに本音で占ってもらう！"
+                text: "星紡ぎで、本音のAI鑑定をはじめる"
                 md_bg_color: 1, 0.3, 0, 1
                 pos_hint: {"center_x": .5}
                 disabled: app.busy or app.importing
@@ -161,7 +161,7 @@ MDBoxLayout:
                 bold: True
             ReadingLabel:
                 id: result_label
-                text: "ここにジミーのズバッと鑑定結果が出るで！"
+                text: "あなたの星の物語が、ここに届きます。"
                 markup: False
             MDFlatButton:
                 text: "写真・APIキー・結果を消去"
@@ -187,7 +187,7 @@ class FortuneApp(MDApp):
             if name != "Icon":
                 style[0] = "JimmyJP"
         self.theme_cls.primary_palette = "DeepOrange"
-        self.title = "ジミーのズバッと本音占い"
+        self.title = "星紡ぎ — AI手相・人相鑑定"
         self.gender = ""
         self.paths = dict.fromkeys(TARGETS, "")
         self.current_selection = ""
@@ -360,7 +360,7 @@ class FortuneApp(MDApp):
             return
         self.busy = True
         self.root.ids.progress_bar.start()
-        self.root.ids.result_label.text = "ジミーが写真を熟読中や...ちょっと待ってな！"
+        self.root.ids.result_label.text = "星紡ぎが、あなたの物語を読み解いています…"
         work = partial(
             analyze_fortune,
             self.paths["face"],
@@ -407,7 +407,7 @@ class FortuneApp(MDApp):
         self.root.ids.label_gender.text = "選択中: 未選択"
         self.root.ids.api_key.text = ""
         self.root.ids.consent.active = False
-        self.root.ids.result_label.text = "ここにジミーのズバッと鑑定結果が出るで！"
+        self.root.ids.result_label.text = "あなたの星の物語が、ここに届きます。"
 
     def _on_keyboard(self, window, key, *args):
         if key in (27, 1001) and self._manager_open:

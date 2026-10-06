@@ -229,6 +229,7 @@ def test_android_spec_and_font_packaging():
     assert "libwebp==1.6.0" in app["requirements"]
     assert "chardet==5.2.0" in app["requirements"]
     assert ".mypy_cache" in app["source.exclude_dirs"]
+    assert "web" in app["source.exclude_dirs"]
     assert "ttf" in app["source.include_exts"]
     assert (root / "assets/NotoSansJP.ttf").stat().st_size > 100_000
     assert "SIL OPEN FONT LICENSE" in (root / "assets/OFL.txt").read_text()
