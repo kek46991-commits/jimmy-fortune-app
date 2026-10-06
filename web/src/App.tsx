@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowRight, Check, ChevronDown, Copy, Download, Fingerprint, Hand, KeyRound, LoaderCircle, LockKeyhole, Moon, Orbit, ScanFace, Share2, ShieldCheck, Sparkles, Star, Trash2, Upload, X } from 'lucide-react';
+import { ArrowDown, ArrowRight, Check, ChevronDown, Copy, Download, Fingerprint, Hand, LoaderCircle, LockKeyhole, Moon, Orbit, ScanFace, Share2, ShieldCheck, Sparkles, Star, Trash2, Upload, X } from 'lucide-react';
 import { CelestialArt, FaceArt, PalmArt } from './components/Illustrations';
 import Turnstile from './components/Turnstile';
-import { generateReading, GENDERS, IMAGE_KINDS, isRecord, preparePhoto, SAMPLE_READING, type Gender, type ImageKind, type Photo } from './lib/fortune';
+import { GENDERS, IMAGE_KINDS, preparePhoto, SAMPLE_READING, type Gender, type ImageKind, type Photo } from './lib/fortune';
+import { getReadingConfiguration, requestReading } from './lib/api';
 
 const PHOTO_INFO = {
   face: { label: '顔写真', english: 'FACE READING', hint: '正面から、明るい場所で', description: '表情に宿る、あなたらしさ', icon: ScanFace },
@@ -15,8 +16,6 @@ export default function App() {
   const [photos, setPhotos] = useState(emptyPhotos);
   const [gender, setGender] = useState<Gender | ''>('');
   const [consent, setConsent] = useState(false);
-  const [key, setKey] = useState('');
-  const [keyOpen, setKeyOpen] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<ImageKind[]>([]);
@@ -32,21 +31,16 @@ export default function App() {
   const controller = useRef<AbortController | null>(null);
   const result = useRef<HTMLElement>(null);
   const errorBox = useRef<HTMLDivElement>(null);
-  const sharedMode = import.meta.env.VITE_SHARED_MODE === 'true';
   const selectedCount = IMAGE_KINDS.filter(kind => photos[kind]).length;
   const onToken = useCallback((value: string) => setToken(value), []);
 
   useEffect(() => {
-    if (!sharedMode) return;
     const abort = new AbortController();
-    fetch('/api/config', { signal: abort.signal }).then(async response => {
-      if (!response.ok) throw new Error();
-      const config: unknown = await response.json();
-      if (!isRecord(config) || typeof config.siteKey !== 'string' || !config.siteKey) throw new Error();
+    getReadingConfiguration(abort.signal).then(config => {
       setSiteKey(config.siteKey);
     }).catch(() => { if (!abort.signal.aborted) setServiceUnavailable(true); });
     return () => abort.abort();
-  }, [sharedMode]);
+  }, []);
   useEffect(() => {
     if (reading) result.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
   }, [reading]);
@@ -78,9 +72,9 @@ export default function App() {
   function clear() {
     controller.current?.abort(); requests.current++;
     IMAGE_KINDS.forEach(kind => selection.current[kind]++);
-    setPhotos(emptyPhotos()); setGender(''); setConsent(false); setKey(''); setReading('');
+    setPhotos(emptyPhotos()); setGender(''); setConsent(false); setReading('');
     setError(''); setPending([]); setBusy(false); setIsSample(false); setToken(''); setChallenge(value => value + 1);
-    setToast('写真・APIキー・鑑定結果を消去しました');
+    setToast('写真・鑑定結果を消去しました');
   }
 
   async function analyze() {
@@ -89,27 +83,15 @@ export default function App() {
     if (!gender) { setError('まず、性別を選択してください。'); return; }
     if (selectedCount !== 3) { setError('顔・右手・左手の写真を3枚選択してください。'); return; }
     if (!consent) { setError('写真の送信と、娯楽の鑑定であることへの同意が必要です。'); return; }
-    if (sharedMode && (serviceUnavailable || !siteKey)) { setError('公開鑑定の準備ができていません。サンプル鑑定をお楽しみください。'); return; }
-    if (sharedMode && !token) { setError('人間であることの確認を完了してください。'); return; }
-    if (!sharedMode && !key.trim()) { setKeyOpen(true); setError('実際のAI鑑定には、ご自身のGemini APIキーを入力してください。サンプル鑑定はキーなしで体験できます。'); return; }
+    if (serviceUnavailable || !siteKey) { setError('鑑定サービスの準備中です。サンプル鑑定をお楽しみください。'); return; }
+    if (!token) { setError('人間であることの確認を完了してください。'); return; }
     const request = ++requests.current;
     const abort = new AbortController(); controller.current = abort;
-    const timeout = window.setTimeout(() => abort.abort(), 100_000);
+    const timeout = window.setTimeout(() => abort.abort(), 60_000);
     const input = { gender, images: IMAGE_KINDS.map(kind => photos[kind]!.data) };
     setBusy(true); setReading(''); setIsSample(false);
     try {
-      let text: string;
-      if (sharedMode) {
-        const response = await fetch('/api/fortune', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...input, consent: true, token }), signal: abort.signal,
-        });
-        const body: unknown = await response.json();
-        if (!response.ok || !isRecord(body) || typeof body.reading !== 'string') {
-          throw new Error(isRecord(body) && typeof body.error === 'string' ? body.error : '鑑定を完了できませんでした。');
-        }
-        text = body.reading;
-      } else text = await generateReading(input, key.trim(), abort.signal);
+      const text = await requestReading(input, token, abort.signal);
       if (requests.current === request) setReading(text);
     } catch (reason) {
       if (requests.current === request) {
@@ -172,7 +154,7 @@ export default function App() {
       <section id="reading" className="reading-section container">
         <div className="section-heading"><p className="eyebrow"><Star size={12} /> YOUR READING BEGINS HERE</p><h2>あなたの星の物語を、<br className="mobile-only" />ひもとく。</h2><p>必要なのは、あなたの顔と両手の写真だけ。<br />ありのままのあなたで、はじめてください。</p></div>
         <div className="reading-panel">
-          <div className="panel-top"><span><span className="live-dot" /> AI手相・人相鑑定</span><small>{sharedMode ? '公開AI鑑定' : '個人APIキーで鑑定'} · Gemini 2.5 Flash</small></div>
+          <div className="panel-top"><span><span className="live-dot" /> AI手相・人相鑑定</span><small>登録不要のAI鑑定 · Gemini 2.5 Flash</small></div>
           <div className="form-step"><div className="step-title"><span>01</span><h3>あなたについて</h3><small>鑑定の言葉選びに使います</small></div>
             <fieldset className="gender-field"><legend className="sr-only">性別を選択</legend>{GENDERS.map(value => <button key={value} type="button" className={`gender-button ${gender === value ? 'selected' : ''}`} aria-pressed={gender === value} disabled={busy} onClick={() => setGender(value)}>{value}{gender === value && <Check size={14} />}</button>)}</fieldset>
           </div>
@@ -192,15 +174,12 @@ export default function App() {
             })}</div>
             <p className="photo-format">JPEG・PNG・WebP ／ 1枚20MB・2400万画素まで <span>写真は端末内で縮小し、位置情報などのメタデータを除去します。</span></p>
           </div>
-          {!sharedMode && <details className="key-settings" open={keyOpen} onToggle={event => setKeyOpen(event.currentTarget.open)}>
-            <summary><KeyRound size={15} /> Gemini APIキー設定 <span>実際のAI鑑定に必要</span><ChevronDown size={14} /></summary>
-            <div><label htmlFor="api-key">ご自身のGemini APIキー</label><input id="api-key" type="password" value={key} onChange={event => setKey(event.target.value)} autoComplete="off" spellCheck={false} disabled={busy} placeholder="APIキーを入力（端末には保存されません）" /><p>キーと写真はGoogleに直接送信します。共有端末では使用後に「データを消去」を押してください。<a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Google AI Studioでキーを取得 ↗</a></p></div>
-          </details>}
           <div className="consent-area"><label><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} disabled={busy} /><span>本人または許可を得た写真をGoogle Geminiへ送信することと、<br className="desktop-only" />鑑定が娯楽目的であり、性格や未来を確定するものではないことに同意します。</span></label><a href="#privacy">写真とプライバシーについて <ArrowRight size={12} /></a></div>
-          {sharedMode && siteKey && <Turnstile key={challenge} siteKey={siteKey} onToken={onToken} />}
+          {siteKey && <Turnstile key={challenge} siteKey={siteKey} onToken={onToken} />}
+          {serviceUnavailable && <p className="form-error" role="status">鑑定サービスは準備中です。サンプル鑑定はそのままお楽しみいただけます。</p>}
           {error && <div className="form-error" role="alert" ref={errorBox} tabIndex={-1}>{error}</div>}
-          <div className="submit-area"><button className="button gold-button submit-button" type="button" onClick={() => void analyze()} disabled={busy || pending.length > 0}>{busy ? <><LoaderCircle className="spin" size={19} /> 星の物語を読み解いています…</> : <><Sparkles size={18} /> AI鑑定をはじめる <ArrowRight size={18} /></>}</button><p><LockKeyhole size={12} /> 写真・キー・結果はブラウザに保存しません</p>
-            {busy && <div className="loading-details"><span className="loading-line" /><p>鑑定には通常1〜2分ほどかかります。画面を閉じずにお待ちください。</p><button className="text-button" onClick={clear}>鑑定を中止してデータを消去</button></div>}
+          <div className="submit-area"><button className="button gold-button submit-button" type="button" onClick={() => void analyze()} disabled={busy || pending.length > 0}>{busy ? <><LoaderCircle className="spin" size={19} /> 星の物語を読み解いています…</> : <><Sparkles size={18} /> AI鑑定をはじめる <ArrowRight size={18} /></>}</button><p><LockKeyhole size={12} /> 写真・結果はブラウザに保存しません</p>
+            {busy && <div className="loading-details"><span className="loading-line" /><p>鑑定には最大1分ほどかかります。画面を閉じずにお待ちください。</p><button className="text-button" onClick={clear}>鑑定を中止してデータを消去</button></div>}
             {!busy && <div className="form-secondary"><button className="text-button" onClick={sample}>まずはサンプル鑑定を体験 <ArrowRight size={13} /></button><button className="text-button muted" onClick={clear}><Trash2 size={13} /> データを消去</button></div>}
           </div>
         </div>
@@ -219,8 +198,8 @@ export default function App() {
       ].map(([number, title, text]) => <article key={number}><span>{number}</span><h3>{title}</h3><p>{text}</p></article>)}</div></section>
 
       <section id="faq" className="faq-section container"><div><p className="eyebrow">A LITTLE MORE TO KNOW</p><h2>気になること、<br />お答えします。</h2><Moon size={45} strokeWidth={.7} /></div><div className="faq-list">
-        <details><summary>無料で使えますか？<ChevronDown size={16} /></summary><p>サンプル鑑定は登録なし・無料で体験できます。実際のAI鑑定は{sharedMode ? '公開サービスの利用枠内でご利用いただけます。上限に達した場合は時間をおいてお試しください。' : 'ご自身のGemini APIキーが必要です。Google側の料金・無料利用枠は、ご利用のAPIプランに従います。'}アプリ自体に決済や課金機能はありません。</p></details>
-        <details id="privacy"><summary>写真やAPIキーは保存されますか？<ChevronDown size={16} /></summary><p>写真は端末内で縮小してメタデータを除去し、同意後にGoogleへ送信します。{sharedMode ? '公開鑑定では運営サーバーを経由しますが、写真や鑑定結果をストレージやデータベースに保存しません。不正利用対策には匿名化したIP識別子と回数のみを一時保存し、Cloudflareによる認証を利用します。' : '個人キーのモードではGoogleへ直接送信し、運営サーバーを経由しません。'}ページを閉じるか「データを消去」でアプリのメモリから消去できます。保存・コピーを選んだ鑑定結果はご自身で管理してください。Google側の利用・保存方針は<a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noreferrer">Gemini APIの規約</a>をご確認ください。</p></details>
+        <details><summary>無料で使えますか？<ChevronDown size={16} /></summary><p>サンプル鑑定は登録なし・無料で体験できます。実際のAI鑑定も、ご自身でキーを用意する必要はありません。公開サービスの利用枠内でご利用いただけます。上限に達した場合は時間をおいてお試しください。アプリ自体に決済や課金機能はありません。</p></details>
+        <details id="privacy"><summary>写真や鑑定結果は保存されますか？<ChevronDown size={16} /></summary><p>写真は端末内で縮小してメタデータを除去し、同意後に運営サーバーを経由してGoogleへ送信します。写真や鑑定結果をストレージやデータベースに保存しません。不正利用対策には匿名化したIP識別子と回数のみを一時保存し、Cloudflareによる認証を利用します。ページを閉じるか「データを消去」でアプリのメモリから消去できます。保存・コピーを選んだ鑑定結果はご自身で管理してください。Google側の利用・保存方針は<a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noreferrer">Gemini APIの規約</a>をご確認ください。</p></details>
         <details><summary>どんな写真を選べばいいですか？<ChevronDown size={16} /></summary><p>顔は正面から、両手は手首から指先まで写るように撮影してください。明るい場所で、手のひらの線が見える写真がおすすめです。JPEG・PNG・WebP形式に対応しています。HEICは先にJPEGへ変換してください。</p></details>
         <details><summary>鑑定結果は科学的な診断ですか？<ChevronDown size={16} /></summary><p>いいえ。伝統的な占いを題材にした娯楽です。写真から性格、未来、健康を確定するものではなく、医療・法律・金融などの判断には利用しないでください。</p></details>
       </div></section>

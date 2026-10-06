@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildPayload, extractReading, generateReading, imageDimensions, MODEL, SAMPLE_READING, validateInput } from './fortune';
+import { imageDimensions, SAMPLE_READING, validateInput } from './fortune';
+import { buildPayload, extractReading, generateReading, MODEL } from '../../server/gemini';
 
 const input = { gender: 'その他' as const, images: ['YWJj', 'ZGVm', 'Z2hp'] };
 afterEach(() => vi.unstubAllGlobals());
