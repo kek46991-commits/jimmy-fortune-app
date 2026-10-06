@@ -52,6 +52,19 @@ buildozer android logcat
 
 設定は API 36 / min API 24 / NDK 28c / arm64-v8a / python-for-android `v2026.05.09` に固定しています。公開時はアプリID `app.jimmyfortune.jimmyfortune` を自分の名前空間に変更してください。署名付きリリースは `buildozer android release` で AAB を作り、別途署名・Play Consoleの要件（プライバシーポリシー、Data safety、対象API等）を確認します。本プロジェクトの自動テストはAPKのビルド成功や実機動作を保証するものではありません。
 
+### APKビルドの検証（2026-10-06）
+
+Ubuntu / Python 3.12 / JDK 17 / Buildozer 1.5.0 で、`jimmyfortune-1.0.0-arm64-v8a-debug.apk` の生成を確認しました。Android側のPythonは固定したpython-for-androidのレシピが提供する3.14.2です。
+
+- APK署名、min API 24 / target API 36、`INTERNET`のみの権限、バックアップ無効を確認。
+- 日本語フォント、KivyMD、PillowのWebP拡張、Requestsの同梱を確認。AndroidのWebP対応には `libwebp==1.6.0` が必要です。
+- 文字コード判定ライブラリは純Pythonの `chardet==5.2.0` に固定し、ホストPC用のネイティブ拡張の混入を防いでいます。
+- ZIPとネイティブライブラリの16KBアラインメントを確認。
+- デバッグ署名の検証用APKです。Play Store公開用の署名・リリースではありません。
+- 実機へのインストール・画面操作・実Gemini通信は未検証です。
+
+ビルド環境ではFreeTypeの取得先がタイムアウトしたため[公式SourceForge配布](https://sourceforge.net/projects/freetype/files/freetype2/)を利用し、Maven CentralのHTTP 429には[Google提供のミラー](https://cloud.google.com/artifact-registry/docs/public-repositories/maven-central)を利用しました。依存バージョンやTLS検証は変更していません。
+
 ### Android固有の設計
 
 - Google公式Python SDKはPCで使用します。AndroidではSDKのネイティブ依存（pydantic-core等）のクロスコンパイルを避け、同じ公式 `generateContent` REST API を HTTPS で呼び出します。モデル・プロンプト・出力設定は共通です。
