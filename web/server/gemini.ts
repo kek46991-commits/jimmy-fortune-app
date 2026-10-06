@@ -1,6 +1,6 @@
 import { isRecord, type ReadingInput } from '../src/lib/fortune';
 
-export const MODEL = 'gemini-2.5-flash';
+export const MODEL = 'gemini-3.5-flash-lite';
 export const SYSTEM_INSTRUCTION = `あなたは「星紡ぎ」の鑑定士。親しみのある関西弁で、本音を愛情深く伝えます。
 顔・右手・左手の写真とユーザーが選択した性別をもとに、伝統的な手相学・人相学を題材に娯楽の鑑定を行います。
 最初に「これは娯楽の占いや。写真で性格や未来が確定するわけやないで」と明示すること。
@@ -24,7 +24,7 @@ export function buildPayload(input: ReadingInput) {
         { text: labels[index] }, { inlineData: { mimeType: 'image/jpeg', data } },
       ]),
     ] }],
-    generationConfig: { temperature: 0.7, maxOutputTokens: 4096, thinkingConfig: { thinkingBudget: 1024 } },
+    generationConfig: { temperature: 1, maxOutputTokens: 4096, thinkingConfig: { thinkingLevel: 'low' } },
   };
 }
 

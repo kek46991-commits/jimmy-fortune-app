@@ -57,11 +57,13 @@ describe('Netlify server-funded functions', () => {
     expect(output).not.toContain('private-operator-key');
     expect(response.headers.get('Cache-Control')).toBe('no-store');
     const [url, options] = fetcher.mock.calls[0];
-    expect(url).toContain('gemini-2.5-flash:generateContent');
+    expect(url).toContain('gemini-3.5-flash-lite:generateContent');
     expect(url).not.toContain('private-operator-key');
     expect(options.headers['x-goog-api-key']).toBe('private-operator-key');
     expect(JSON.stringify(options)).not.toContain('untrusted-client-key');
-    const parts = JSON.parse(options.body).contents[0].parts;
+    const geminiPayload = JSON.parse(options.body);
+    expect(geminiPayload.generationConfig.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+    const parts = geminiPayload.contents[0].parts;
     const images = parts.filter((part: { inlineData?: { data: string } }) => part.inlineData);
     expect(images).toHaveLength(3);
     const meta = await sharp(Buffer.from(images[0].inlineData.data, 'base64')).metadata();

@@ -154,7 +154,7 @@ export default function App() {
       <section id="reading" className="reading-section container">
         <div className="section-heading"><p className="eyebrow"><Star size={12} /> YOUR READING BEGINS HERE</p><h2>あなたの星の物語を、<br className="mobile-only" />ひもとく。</h2><p>必要なのは、あなたの顔と両手の写真だけ。<br />ありのままのあなたで、はじめてください。</p></div>
         <div className="reading-panel">
-          <div className="panel-top"><span><span className="live-dot" /> AI手相・人相鑑定</span><small>登録不要のAI鑑定 · Gemini 2.5 Flash</small></div>
+          <div className="panel-top"><span><span className="live-dot" /> AI手相・人相鑑定</span><small>登録不要のAI鑑定 · Gemini 3.5 Flash-Lite</small></div>
           <div className="form-step"><div className="step-title"><span>01</span><h3>あなたについて</h3><small>鑑定の言葉選びに使います</small></div>
             <fieldset className="gender-field"><legend className="sr-only">性別を選択</legend>{GENDERS.map(value => <button key={value} type="button" className={`gender-button ${gender === value ? 'selected' : ''}`} aria-pressed={gender === value} disabled={busy} onClick={() => setGender(value)}>{value}{gender === value && <Check size={14} />}</button>)}</fieldset>
           </div>

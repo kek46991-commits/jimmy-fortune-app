@@ -9,6 +9,8 @@ describe('key-free public interface', () => {
     expect(html).toContain('顔写真を選択');
     expect(html).toContain('右手の手相を選択');
     expect(html).toContain('左手の手相を選択');
+    expect(html).toContain('Gemini 3.5 Flash-Lite');
+    expect(html).not.toContain('Gemini 2.5 Flash');
     for (const removed of ['Gemini APIキー設定', 'Google AI Studio', 'aistudio.google.com', 'type="password"', '個人APIキー', 'id="api-key"']) {
       expect(html).not.toContain(removed);
     }

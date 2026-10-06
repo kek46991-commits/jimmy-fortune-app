@@ -24,6 +24,12 @@ describe('reading input', () => {
     expect(payload.systemInstruction.parts[0].text).toContain('センシティブ');
     expect(payload.systemInstruction.parts[0].text).toContain('娯楽');
   });
+  it('uses Gemini 3.5 Flash-Lite with supported low-latency thinking settings', () => {
+    expect(MODEL).toBe('gemini-3.5-flash-lite');
+    expect(buildPayload(input).generationConfig).toEqual({
+      temperature: 1, maxOutputTokens: 4096, thinkingConfig: { thinkingLevel: 'low' },
+    });
+  });
 });
 describe('image bounds', () => {
   it('shrinks landscape and portrait images without upscaling', () => {
@@ -56,8 +62,10 @@ describe('Gemini response', () => {
     vi.stubGlobal('fetch', fetcher);
     expect(await generateReading(input, 'test-credential')).toBe('鑑定結果');
     const [url, options] = fetcher.mock.calls[0];
-    expect(url).toContain(MODEL); expect(url).not.toContain('test-credential');
+    expect(url).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent');
+    expect(url).not.toContain('test-credential');
     expect(options.headers['x-goog-api-key']).toBe('test-credential');
+    expect(JSON.parse(options.body).generationConfig.thinkingConfig).toEqual({ thinkingLevel: 'low' });
   });
   it.each([400, 401, 403, 404, 429, 500])('sanitizes HTTP %i and upstream secrets', async status => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('credential-leak', { status })));
