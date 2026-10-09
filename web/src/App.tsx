@@ -164,15 +164,16 @@ export default function App() {
               return <div className={`photo-card ${photo ? 'has-photo' : ''}`} key={kind}>
                 <div className="photo-card-heading"><span>0{index + 1}</span><small>{info.english}</small>{photo && <Check size={15} />}</div>
                 <label className="photo-input-label" onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); void choosePhoto(kind, event.dataTransfer.files[0]); }}>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" aria-label={`${info.label}を選択`} disabled={busy || pending.includes(kind)} onChange={event => { void choosePhoto(kind, event.target.files?.[0]); event.target.value = ''; }} />
+                  <input type="file" accept="image/*,.heic,.heif" aria-label={`${info.label}を選択`} disabled={busy || pending.includes(kind)} onChange={event => { void choosePhoto(kind, event.target.files?.[0]); event.target.value = ''; }} />
                   <div className="photo-illustration">{pending.includes(kind) ? <LoaderCircle className="spin" size={30} /> : photo ? <img src={photo.preview} alt={`選択した${info.label}`} /> : kind === 'face' ? <FaceArt /> : <PalmArt mirrored={kind === 'left'} />}</div>
-                  <h4>{info.label}</h4><p>{info.description}</p><span className="upload-button"><Upload size={13} />{photo ? '写真を変更' : '写真を選ぶ'}</span><small className="photo-hint">{photo ? photo.name : info.hint}</small>
+                  <h4>{info.label}</h4><p>{info.description}</p><span className="upload-button"><Upload size={13} />{pending.includes(kind) ? '写真を読み込み中…' : photo ? '写真を変更' : '写真を選ぶ'}</span><small className="photo-hint" role="status">{pending.includes(kind) ? 'このままお待ちください' : photo ? photo.name : info.hint}</small>
                 </label>
                 {photo && <button type="button" className="remove-photo" aria-label={`${info.label}を削除`} disabled={busy} onClick={() => { selection.current[kind]++; setPhotos(previous => ({ ...previous, [kind]: null })); }}><X size={14} /></button>}
                 <span className="photo-corner"><Icon size={14} /></span>
               </div>;
             })}</div>
-            <p className="photo-format">JPEG・PNG・WebP ／ 1枚20MB・2400万画素まで <span>写真は端末内で縮小し、位置情報などのメタデータを除去します。</span></p>
+            <p className="photo-format">JPEG・PNG・WebP・HEIC ／ 1枚20MB・2400万画素まで <span>写真は端末内で縮小し、位置情報などのメタデータを除去します。</span></p>
+            <p className="photo-format">写真選択が開かない場合は、Instagram等のメニューから「外部ブラウザーで開く」を選び、Safari・Chromeでお試しください。</p>
           </div>
           <div className="consent-area"><label><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} disabled={busy} /><span>本人または許可を得た写真をGoogle Geminiへ送信することと、<br className="desktop-only" />鑑定が娯楽目的であり、性格や未来を確定するものではないことに同意します。</span></label><a href="#privacy">写真とプライバシーについて <ArrowRight size={12} /></a></div>
           {siteKey && <Turnstile key={challenge} siteKey={siteKey} onToken={onToken} />}
@@ -200,7 +201,7 @@ export default function App() {
       <section id="faq" className="faq-section container"><div><p className="eyebrow">A LITTLE MORE TO KNOW</p><h2>気になること、<br />お答えします。</h2><Moon size={45} strokeWidth={.7} /></div><div className="faq-list">
         <details><summary>無料で使えますか？<ChevronDown size={16} /></summary><p>サンプル鑑定は登録なし・無料で体験できます。実際のAI鑑定も、ご自身でキーを用意する必要はありません。公開サービスの利用枠内でご利用いただけます。上限に達した場合は時間をおいてお試しください。アプリ自体に決済や課金機能はありません。</p></details>
         <details id="privacy"><summary>写真や鑑定結果は保存されますか？<ChevronDown size={16} /></summary><p>写真は端末内で縮小してメタデータを除去し、同意後に運営サーバーを経由してGoogleへ送信します。写真や鑑定結果をストレージやデータベースに保存しません。不正利用対策には匿名化したIP識別子と回数のみを一時保存し、Cloudflareによる認証を利用します。ページを閉じるか「データを消去」でアプリのメモリから消去できます。保存・コピーを選んだ鑑定結果はご自身で管理してください。Google側の利用・保存方針は<a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noreferrer">Gemini APIの規約</a>をご確認ください。</p></details>
-        <details><summary>どんな写真を選べばいいですか？<ChevronDown size={16} /></summary><p>顔は正面から、両手は手首から指先まで写るように撮影してください。明るい場所で、手のひらの線が見える写真がおすすめです。JPEG・PNG・WebP形式に対応しています。HEICは先にJPEGへ変換してください。</p></details>
+        <details><summary>どんな写真を選べばいいですか？<ChevronDown size={16} /></summary><p>顔は正面から、両手は手首から指先まで写るように撮影してください。明るい場所で、手のひらの線が見える写真がおすすめです。JPEG・PNG・WebP・HEIC形式に対応しています。HEICは端末内でJPEGへ変換します。</p></details>
         <details><summary>鑑定結果は科学的な診断ですか？<ChevronDown size={16} /></summary><p>いいえ。伝統的な占いを題材にした娯楽です。写真から性格、未来、健康を確定するものではなく、医療・法律・金融などの判断には利用しないでください。</p></details>
       </div></section>
       <section className="closing container"><Sparkles size={25} strokeWidth={1} /><h2>あなたの物語は、<br />まだ、続いている。</h2><p>その一歩を、星紡ぎと。</p><a className="text-button" href="#reading">自分の可能性を見つける <ArrowRight size={16} /></a></section>
