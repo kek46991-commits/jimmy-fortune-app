@@ -1,14 +1,14 @@
 [app]
-title = Jimmy Fortune
+title = 星紡ぎ
 package.name = jimmyfortune
 package.domain = app.jimmyfortune
 source.dir = .
 source.include_exts = py,kv,png,jpg,jpeg,atlas,ttf,txt
-source.exclude_dirs = tests,.git,.venv,venv,.buildozer,bin,__pycache__,photos
+source.exclude_dirs = tests,.git,.venv,venv,.buildozer,bin,__pycache__,photos,.pytest_cache,.ruff_cache,.mypy_cache,web,node_modules,dist,.github
 source.exclude_patterns = .env*,requirements*.txt
 version = 1.0.0
 # google-genai requires native dependencies; Android uses the official REST API.
-requirements = python3,kivy==2.3.1,kivymd==1.2.0,pillow==11.3.0,requests==2.32.5,certifi,pyjnius
+requirements = python3,kivy==2.3.1,kivymd==1.2.0,pillow==11.3.0,libwebp==1.6.0,requests==2.32.5,chardet==5.2.0,certifi,pyjnius
 orientation = portrait
 fullscreen = 0
 android.permissions = INTERNET

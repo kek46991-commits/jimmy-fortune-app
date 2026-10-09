@@ -41,7 +41,8 @@ def wait_for(predicate):
 
 
 def test_widget_generation_and_snackbar(app):
-    assert "ジミー" in app.root.ids.btn_submit.text
+    assert "星紡ぎ" in app.root.ids.btn_submit.text
+    assert "星紡ぎ" in app.title
     assert not app.root.ids.consent.active
     assert app.on_pause() is True
     app.show_toast("写真を選んでな！")

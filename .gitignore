@@ -9,8 +9,15 @@ venv/
 bin/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
 *.apk
 *.aab
 *.keystore
 *.jks
 photos/
+node_modules/
+dist/
+.vercel/
+.netlify/
+.env.local
+.env.*.local
