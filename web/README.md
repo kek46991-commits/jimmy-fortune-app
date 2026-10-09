@@ -24,7 +24,7 @@ npm run build
 - 顔・右手・左手の写真3枚、性別、写真送信への同意を選び、「AI鑑定をはじめる」で鑑定します。
 - ブラウザは同一オリジンの `/api/fortune` に送信し、サーバーだけが `process.env.GEMINI_API_KEY` でGeminiを呼び出します。個人キー入力や取得案内、Googleへの直接通信はありません。
 - 運営キーをHTML / JavaScript / APIの応答へ含めません。写真・結果はlocalStorage、Cookie、IndexedDBへ保存しません。「データを消去」かページを閉じるとアプリのメモリから消去できます。
-- 写真はブラウザで最大1280pxのJPEGへ縮小。JPEG / PNG / WebP、20MB・2400万画素以下に対応し、位置情報などのメタデータを除去します。HEICはJPEGへ事前変換してください。
+- 写真はブラウザで最大1280pxのJPEGへ縮小。JPEG / PNG / WebP / HEIC / HEIF、20MB・2400万画素以下に対応し、位置情報などのメタデータを除去します。端末がMIME情報を付けない写真も実形式で判定します。HEICはブラウザの対応を優先し、非対応時のみ `heic-to/csp` を遅延ロードして端末内でJPEG化します。サーバーへのHEIC送信や外部変換サービスの利用はありません。
 - サーバーでも実形式・画素数を検証し、再縮小・JPEG化・メタデータ除去を行います。写真や結果をディスク・ストレージへ保存する処理はありません。
 - サンプル鑑定は明示した固定コンテンツで、写真分析やAPI通信を行いません。
 - 未設定・外部認証障害・利用枠超過時は実鑑定を停止します。サンプルを実鑑定結果として返すことはありません。
@@ -94,3 +94,5 @@ npx netlify-cli@27.11.2 deploy --build --prod
 ## フォントとライセンス
 
 見出しには[Zen Old Mincho](https://github.com/google/fonts/tree/main/ofl/zenoldmincho)をWOFF2で同梱。ライセンスは `public/fonts/OFL.txt`。本文は端末の日本語システムフォントを使います。
+
+HEIC変換には [heic-to 1.5.2](https://github.com/hoppergee/heic-to/tree/v1.5.2)（LGPL-3.0、libheifを含む）を使用します。ソースと再ビルド手順は同リンク、ライセンスは `public/heic-to-LICENSE.txt` に同梱しています。CSP対応版を使用し、`unsafe-eval` は許可しません。変換処理に必要なBlob Workerだけを `worker-src` で許可しています。
