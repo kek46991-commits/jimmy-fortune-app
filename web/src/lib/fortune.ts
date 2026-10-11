@@ -29,18 +29,72 @@ export function imageDimensions(width: number, height: number): [number, number]
   return [Math.max(1, Math.round(width * scale)), Math.max(1, Math.round(height * scale))];
 }
 
-export async function preparePhoto(file: File): Promise<Photo> {
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-    throw new Error('JPEG・PNG・WebPの写真を選択してください。HEICはJPEGに変換してください。');
+async function photoType(file: File): Promise<string> {
+  const header = new Uint8Array(await file.slice(0, 64).arrayBuffer());
+  if (header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) return 'image/jpeg';
+  if ([137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => header[index] === byte)) return 'image/png';
+  const text = (start: number, end: number) => String.fromCharCode(...header.slice(start, end));
+  if (text(0, 4) === 'RIFF' && text(8, 12) === 'WEBP') return 'image/webp';
+  if (text(4, 8) === 'ftyp' && header.length >= 16) {
+    const end = Math.min(new DataView(header.buffer).getUint32(0), header.length);
+    const brands = [text(8, 12)];
+    for (let offset = 16; offset + 4 <= end; offset += 4) brands.push(text(offset, offset + 4));
+    if (!brands.some(brand => ['avif', 'avis'].includes(brand)) &&
+      brands.some(brand => ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'hevm', 'hevs', 'mif1', 'msf1'].includes(brand))) {
+      return 'image/heic';
+    }
   }
-  if (file.size > MAX_IMAGE_BYTES) throw new Error('写真は1枚20MB以下にしてください。');
-  const url = URL.createObjectURL(file);
+  throw new Error('JPEG・PNG・WebP・HEICの写真を選択してください。');
+}
+
+async function loadPhoto(blob: Blob): Promise<HTMLImageElement> {
+  const url = URL.createObjectURL(blob);
+  const image = new Image();
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const image = new Image();
-    image.src = url;
-    await image.decode();
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('写真を読み込めませんでした。別の写真を選択してください。'));
+      timer = setTimeout(() => {
+        image.src = '';
+        reject(new Error('写真の読み込みが時間切れになりました。小さい写真で再度お試しください。'));
+      }, 30_000);
+      image.src = url;
+    });
+    return image;
+  } finally {
+    clearTimeout(timer); image.onload = null; image.onerror = null;
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function convertHeic(file: File): Promise<Blob> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      import('heic-to/csp').then(({ heicTo }) => heicTo({ blob: file, type: 'image/jpeg', quality: 0.9 })),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('timeout')), 45_000);
+      }),
+    ]);
+  } catch {
+    throw new Error('HEIC写真を変換できませんでした。JPEGの写真を選ぶか、Safari・Chromeで開いてお試しください。');
+  } finally { clearTimeout(timer); }
+}
+
+export async function preparePhoto(file: File): Promise<Photo> {
+  if (file.size > MAX_IMAGE_BYTES) throw new Error('写真は1枚20MB以下にしてください。');
+  if (!file.size) throw new Error('写真が空です。写真を選び直してください。');
+  const type = await photoType(file);
+  let image: HTMLImageElement;
+  try { image = await loadPhoto(new Blob([file], { type })); }
+  catch (error) {
+    if (type !== 'image/heic') throw error;
+    image = await loadPhoto(await convertHeic(file));
+  }
+  const canvas = document.createElement('canvas');
+  try {
     const [width, height] = imageDimensions(image.naturalWidth, image.naturalHeight);
-    const canvas = document.createElement('canvas');
     canvas.width = width; canvas.height = height;
     const context = canvas.getContext('2d');
     if (!context) throw new Error('このブラウザでは写真を処理できません。');
@@ -50,10 +104,7 @@ export async function preparePhoto(file: File): Promise<Photo> {
     const data = preview.split(',')[1];
     if (!data || data.length > MAX_ENCODED_LENGTH) throw new Error('写真が大きすぎます。小さくして再選択してください。');
     return { name: file.name, preview, data };
-  } catch (error) {
-    if (error instanceof Error && !(error instanceof DOMException)) throw error;
-    throw new Error('写真を読み込めませんでした。別の写真を選択してください。');
-  } finally { URL.revokeObjectURL(url); }
+  } finally { canvas.width = 1; canvas.height = 1; }
 }
 
 export const SAMPLE_READING = `これは鑑定のサンプルです。写真の分析やGeminiとの通信は行っていません。
