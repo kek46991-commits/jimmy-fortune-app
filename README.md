@@ -48,10 +48,10 @@ python main.py
 
 Windows は `.venv\Scripts\activate` で仮想環境を有効にします。
 
-1. [Google AI Studio](https://aistudio.google.com/apikey)で自分の Gemini API キーを取得し、アプリの入力欄に入力します。PCでは起動前の `GEMINI_API_KEY` 環境変数も利用できます。キーをファイル・Git・APKに埋め込まないでください。
+1. 初回起動時は「はじめの設定」画面が開きます。[Google AI Studio](https://aistudio.google.com/apikey)で自分の Gemini API キーを作成して貼り付け、「キーを確認して保存」を押します。キーはGoogleのモデル情報APIで有効性を確認してから保存され、次回からは入力不要です。PCでは起動前の `GEMINI_API_KEY` 環境変数があれば設定画面を省略します（環境変数は保存しません）。キーをファイル・Git・APKに埋め込まないでください。
 2. 性別を選び、顔・右手・左手の写真をそれぞれ選択します。プレビューで取り違えを確認してください。
 3. Googleへの写真と性別の送信に同意し、鑑定ボタンを押します。通信中も画面は応答し、重複送信はできません。
-4. 消去ボタンで写真コピー・キー・結果を消せます。写真コピーはアプリ終了時と次回起動時にも削除します。
+4. 消去ボタンで写真コピー・結果を消せます。キーは画面上部の鍵アイコンか「キーを変更」から変更・削除できます。写真コピーはアプリ終了時と次回起動時にも削除します。
 
 JPEG・PNG・WebPが利用できます（HEICは先に変換してください）。1枚20MB・2400万画素以下。送信前にEXIFの回転を反映し、最大1600pxに縮小、位置情報等のメタデータを除去したJPEGに変換します。元の写真は変更しません。
 
@@ -90,7 +90,7 @@ Ubuntu / Python 3.12 / JDK 17 / Buildozer 1.5.0 で、`jimmyfortune-1.0.0-arm64-
 
 - Google公式Python SDKはPCで使用します。AndroidではSDKのネイティブ依存（pydantic-core等）のクロスコンパイルを避け、同じ公式 `generateContent` REST API を HTTPS で呼び出します。モデル・プロンプト・出力設定は共通です。
 - 写真選択はAndroidの Storage Access Framework（`ACTION_OPEN_DOCUMENT`）を使用し、`content://` URI をアプリ専用領域へコピーします。Android 13以降も広範なストレージ権限は不要です。必要な権限は `INTERNET` のみです。
-- APIキーは起動ごとに入力します。AndroidでPCの環境変数が自動で引き継がれることはありません。キーは保存しませんが、処理中はメモリに存在します。一般配布で開発者共通のキーを使用する場合、APKにキーを埋め込まず、認証・利用制限を備えたバックエンドからGeminiを呼び出す設計へ変更してください。
+- APIキーは初回設定で一度だけ入力します。Androidでは端末の Android Keystore で生成した取り出し不可能な AES-256-GCM 鍵で暗号化し、アプリ専用領域（バックアップ無効）に保存します。Keystore が使えない端末では保存せず、アプリ終了までメモリ上でのみ使います。PC版はアプリ用フォルダに所有者のみ読み書きできる権限（0600）で保存し、暗号化はしません。AndroidでPCの環境変数が自動で引き継がれることはありません。一般配布で開発者共通のキーを使用する場合、APKにキーを埋め込まず、認証・利用制限を備えたバックエンドからGeminiを呼び出す設計へ変更してください。
 - OSによる強制終了時には写真コピーが残る可能性があり、次回起動で削除します。Androidのバックアップは無効です。
 - Google側のデータ利用・保存・料金は[Gemini APIの規約](https://ai.google.dev/gemini-api/terms)およびAPIのプランに従います。第三者の写真を無断送信しないでください。
 
@@ -102,7 +102,7 @@ Ubuntu / Python 3.12 / JDK 17 / Buildozer 1.5.0 で、`jimmyfortune-1.0.0-arm64-
 python -m pip install -r requirements-dev.txt
 ruff check .
 ruff format --check .
-mypy main.py gemini_fortune.py
+mypy main.py gemini_fortune.py key_store.py
 python -m compileall -q main.py gemini_fortune.py
 pytest -q
 # GUIのないLinuxではKivyウィジェットのスモークテスト用にXvfbが必要
