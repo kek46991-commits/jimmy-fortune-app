@@ -55,9 +55,11 @@ def test_validation_does_not_start_worker(app, monkeypatch):
     monkeypatch.setattr(app, "show_toast", show)
     thread = MagicMock()
     monkeypatch.setattr("main.threading.Thread", thread)
+    app.root.current = "reading"
     app.start_analysis()
     assert "APIキー" in show.call_args.args[0]
-    app.root.ids.api_key.text = "test-key"
+    assert app.root.current == "setup"
+    app._set_key("test-key", False)
     app.start_analysis()
     assert "性別" in show.call_args.args[0]
     app.set_gender("女性")
@@ -81,7 +83,7 @@ def test_async_completion_duplicate_prevention_and_cleanup(app, monkeypatch):
         return "ジミーの鑑定結果"
 
     monkeypatch.setattr("main.analyze_fortune", analyze)
-    app.root.ids.api_key.text = "test-key"
+    app._set_key("test-key", False)
     app.set_gender("その他")
     app.paths = dict.fromkeys(app.paths, "photo.jpg")
     app.root.ids.consent.active = True
@@ -91,7 +93,7 @@ def test_async_completion_duplicate_prevention_and_cleanup(app, monkeypatch):
     assert app.root.ids.btn_submit.disabled
     app.start_analysis()
     app.clear_reading()
-    assert app.root.ids.api_key.text == "test-key"
+    assert app.api_key == "test-key"
     finished.set()
     wait_for(lambda: not app.busy)
     assert len(calls) == 1
@@ -99,7 +101,7 @@ def test_async_completion_duplicate_prevention_and_cleanup(app, monkeypatch):
     assert app.root.ids.result_label.text == "ジミーの鑑定結果"
     assert not app.root.ids.btn_submit.disabled
     app.clear_reading()
-    assert not app.root.ids.api_key.text
+    assert app.api_key == "test-key"
     assert not app.root.ids.consent.active
     assert not any(app.paths.values())
 
@@ -174,3 +176,108 @@ def test_android_copy_closes_streams_and_handles_partial_transfers(app, tmp_path
     assert [call.args[1] for call in channel.transferFrom.call_args_list] == [0, 10, 30]
     stream.close.assert_called_once()
     output.close.assert_called_once()
+
+
+def make_app(tmp_path):
+    from kivy.clock import Clock
+
+    from main import FortuneApp
+
+    class TestApp(FortuneApp):
+        @property
+        def user_data_dir(self):
+            return str(tmp_path)
+
+    app = TestApp()
+    app._run_prepare()
+    Clock.tick()
+    return app
+
+
+def test_first_launch_shows_setup_and_saves_verified_key(tmp_path, monkeypatch):
+    from kivy.clock import Clock
+
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    app = make_app(tmp_path)
+    assert app.root.current == "setup"
+    assert not app.has_key
+    verified = []
+    monkeypatch.setattr("main.verify_api_key", verified.append)
+    show = MagicMock()
+    monkeypatch.setattr(app, "show_toast", show)
+    app.save_api_key()
+    assert "APIキー" in show.call_args.args[0]
+    assert not verified
+    app.root.ids.setup_key.text = "  AIza-test-1234  "
+    app.save_api_key()
+    wait_for(lambda: not app.verifying)
+    assert verified == ["AIza-test-1234"]
+    assert app.root.current == "reading"
+    assert app.api_key == "AIza-test-1234"
+    assert app.has_saved_key
+    assert "1234" in app.key_status
+    assert not app.root.ids.setup_key.text
+    saved = tmp_path / "gemini_api_key.json"
+    assert saved.exists()
+    assert saved.stat().st_mode & 0o777 == 0o600
+    app.stop()
+    Clock.tick()
+
+    second = make_app(tmp_path)
+    try:
+        assert second.root.current == "reading"
+        assert second.api_key == "AIza-test-1234"
+        second.open_setup()
+        assert second.root.current == "setup"
+        second.show_reading()
+        assert second.root.current == "reading"
+        second.open_setup()
+        second.delete_api_key()
+        assert not saved.exists()
+        assert not second.has_key
+        assert second.root.current == "setup"
+        second.show_reading()
+        assert second.root.current == "setup"
+    finally:
+        second.stop()
+
+
+def test_rejected_key_is_not_saved(app, tmp_path, monkeypatch):
+    from gemini_fortune import FortuneError
+
+    def reject(key):
+        raise FortuneError("APIキーが正しくないみたいや。確認してな！")
+
+    monkeypatch.setattr("main.verify_api_key", reject)
+    show = MagicMock()
+    monkeypatch.setattr(app, "show_toast", show)
+    app.root.ids.setup_key.text = "bad-key"
+    app.save_api_key()
+    wait_for(lambda: not app.verifying)
+    assert "正しくない" in show.call_args.args[0]
+    assert app.root.current == "setup"
+    assert not app.has_key
+    assert not (tmp_path / "gemini_api_key.json").exists()
+
+
+def test_environment_key_skips_setup(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "env-key-9876")
+    app = make_app(tmp_path)
+    try:
+        assert app.root.current == "reading"
+        assert app.api_key == "env-key-9876"
+        assert not app.has_saved_key
+        assert "環境変数" in app.key_status
+    finally:
+        app.stop()
+
+
+def test_unreadable_saved_key_falls_back_to_setup(tmp_path, monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    (tmp_path / "gemini_api_key.json").write_text("not json")
+    app = make_app(tmp_path)
+    try:
+        assert app.root.current == "setup"
+        assert not app.has_key
+    finally:
+        app.stop()

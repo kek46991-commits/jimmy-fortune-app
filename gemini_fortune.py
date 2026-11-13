@@ -78,6 +78,30 @@ def _status_error(status: int) -> FortuneError:
     return FortuneError(messages.get(status, "Geminiが応答できへんわ。後でもう一度試してな！"))
 
 
+def verify_api_key(key: str) -> None:
+    """Check the key with a lightweight model lookup; raise a safe FortuneError on failure."""
+    key = key.strip()
+    if not key:
+        raise FortuneError("Gemini APIキーを入力してな！")
+    if any(ch.isspace() for ch in key) or not key.isascii():
+        raise FortuneError("APIキーの形式がおかしいわ。コピーし直してな！")
+    try:
+        with requests.get(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}",
+            headers={"x-goog-api-key": key},
+            timeout=(10, 20),
+        ) as response:
+            status = response.status_code
+    except requests.Timeout as exc:
+        raise FortuneError("時間切れや。通信環境を確認してもう一度試してな！") from exc
+    except requests.RequestException as exc:
+        raise FortuneError("通信できへんわ。インターネット接続を確認してな！") from exc
+    if status == 400:
+        raise FortuneError("APIキーが正しくないみたいや。確認してな！")
+    if status != 200:
+        raise _status_error(status)
+
+
 def _generate_rest(key: str, prompt: str, images: list[bytes]) -> str:
     parts: list[dict[str, object]] = [{"text": prompt}]
     for label, data in zip(("顔写真", "右手の手相", "左手の手相"), images):

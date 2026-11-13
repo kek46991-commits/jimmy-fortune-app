@@ -233,3 +233,31 @@ def test_android_spec_and_font_packaging():
     assert "ttf" in app["source.include_exts"]
     assert (root / "assets/NotoSansJP.ttf").stat().st_size > 100_000
     assert "SIL OPEN FONT LICENSE" in (root / "assets/OFL.txt").read_text()
+
+
+def key_check(monkeypatch, status=200, error=None):
+    response = MagicMock()
+    response.status_code = status
+    response.__enter__.return_value = response
+    get = MagicMock(return_value=response, side_effect=error)
+    monkeypatch.setattr(fortune.requests, "get", get)
+    return get
+
+
+def test_verify_api_key_uses_header_and_maps_errors(monkeypatch):
+    get = key_check(monkeypatch)
+    fortune.verify_api_key("  good-key ")
+    assert get.call_args.kwargs["headers"] == {"x-goog-api-key": "good-key"}
+    assert "good-key" not in get.call_args.args[0]
+    for status, text in ((400, "正しくない"), (403, "権限"), (429, "上限"), (500, "応答")):
+        key_check(monkeypatch, status)
+        with pytest.raises(fortune.FortuneError, match=text):
+            fortune.verify_api_key("bad")
+    key_check(monkeypatch, error=requests.ConnectionError("down"))
+    with pytest.raises(fortune.FortuneError, match="通信"):
+        fortune.verify_api_key("key")
+    unused = key_check(monkeypatch)
+    for value in ("", "has space", "全角キー"):
+        with pytest.raises(fortune.FortuneError):
+            fortune.verify_api_key(value)
+    unused.assert_not_called()
